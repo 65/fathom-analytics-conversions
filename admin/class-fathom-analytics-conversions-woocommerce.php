@@ -53,14 +53,6 @@ class Fathom_Analytics_Conversions_Woocommerce {
 		$this->plugin_name = $plugin_name;
 		$this->version     = $version;
 
-		if ( function_exists( 'WC' ) ) {
-			$GLOBALS['gtm4wp_is_woocommerce3']   = version_compare( WC()->version, '3.0', '>=' );
-			$GLOBALS['gtm4wp_is_woocommerce3_7'] = version_compare( WC()->version, '3.7', '>=' );
-		} else {
-			$GLOBALS['gtm4wp_is_woocommerce3']   = FALSE;
-			$GLOBALS['gtm4wp_is_woocommerce3_7'] = FALSE;
-		}
-
 		// Check to add event id to new form.
 		add_action( 'wp_footer', array( $this, 'fac_woo_footer_script' ) );
 		//add_action( 'wp_enqueue_scripts', [ $this, 'fac_woo_script' ] );
@@ -73,18 +65,16 @@ class Fathom_Analytics_Conversions_Woocommerce {
 	 * @since    1.0.9
 	 */
 	public function fac_woo_footer_script() {
-		global $fac4wp_options;
-		if ( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_WOOCOMMERCE ] && is_fac_fathom_analytic_active() ) {
+		if ( FAC_Options::get( FAC4WP_OPTION_INTEGRATE_WOOCOMMERCE ) && is_fac_fathom_analytic_active() ) {
 			if ( ! fac_fathom_is_excluded_from_tracking() ) { // Track visits by administrators!
-				//$woo = WC();
 
-				$fac_content = '<script id="fac-woocommerce" data-cfasync="false" data-pagespeed-no-defer type="text/javascript">';
+				$js = '';
 				if ( is_order_received_page() ) {
 					$event_title = apply_filters( 'fac_woocommerce_order_title', __( 'WooCommerce Order', 'fathom-analytics-conversions' ) );
 
 					$fac_is_woocommerce3 = version_compare( WC()->version, '3.0', '>=' );
 
-					$order_id          = empty( $_GET['order'] ) ? ( $GLOBALS['wp']->query_vars['order-received'] ? $GLOBALS['wp']->query_vars['order-received'] : 0 ) : absint( $_GET['order'] );
+					$order_id          = ! empty( $_GET['order'] ) ? absint( $_GET['order'] ) : ( ! empty( $GLOBALS['wp']->query_vars['order-received'] ) ? absint( $GLOBALS['wp']->query_vars['order-received'] ) : 0 );
 					$order_id_filtered = apply_filters( 'woocommerce_thankyou_order_id', $order_id );
 					if ( '' != $order_id_filtered ) {
 						$order_id = $order_id_filtered;
@@ -111,15 +101,14 @@ class Fathom_Analytics_Conversions_Woocommerce {
 					}
 
 					if ( isset ( $order ) ) {
-						$order_total = esc_js( $order->get_total() );
-						$order_total *= 100;
-						$fac_content .= 'window.addEventListener("load", (event) => {
-        fathom.trackEvent("' . $event_title . '", {_value: ' . $order_total . '});
+						$order_total = (float) $order->get_total() * 100;
+						$js .= 'window.addEventListener("load", (event) => {
+        fathom.trackEvent(' . wp_json_encode( $event_title ) . ', {_value: ' . intval( $order_total ) . '});
 	});';
 					}
 				}
 
-				$fac_content .= 'window.addEventListener("load", (event) => {
+				$js .= 'window.addEventListener("load", (event) => {
   const addToCartButtons = document.querySelectorAll(".add-to-cart-button");
   addToCartButtons.forEach(button => {
     button.addEventListener("click", (clickEvent) => {
@@ -136,9 +125,11 @@ class Fathom_Analytics_Conversions_Woocommerce {
   });
 });';
 
-				$fac_content .= '</script>';
-
-				echo $fac_content;
+				wp_print_inline_script_tag( $js, [
+					'id'                      => 'fac-woocommerce',
+					'data-cfasync'            => 'false',
+					'data-pagespeed-no-defer' => true,
+				] );
 			}
 		}
 	}

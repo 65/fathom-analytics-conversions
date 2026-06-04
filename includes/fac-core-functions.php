@@ -10,9 +10,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-global $fac4wp_options, $fac4wp_default_options;
-
-$fac4wp_options = [];
+global $fac4wp_default_options;
 
 $fac4wp_default_options = [
 	FAC4WP_OPTION_API_KEY_CODE           => '',
@@ -26,8 +24,9 @@ $fac4wp_default_options = [
 	'integrate-wp-login'                 => FALSE,
 	'integrate-wp-registration'          => FALSE,
 	'integrate-wp-lost-password'         => FALSE,
+	'fac_delete_data_on_uninstall'       => FALSE,
 ];
-apply_filters( 'fac4wp_global_default_options', $fac4wp_default_options );
+$fac4wp_default_options = apply_filters( 'fac4wp_global_default_options', $fac4wp_default_options );
 
 if ( ! function_exists( 'fac_fathom_get_excluded_roles' ) ) {
 	function fac_fathom_get_excluded_roles() {
@@ -53,8 +52,13 @@ if ( ! function_exists( 'fac_fathom_is_excluded_from_tracking' ) ) {
 	}
 }
 
-function fac4wp_reload_options() {
+function fac4wp_reload_options( $force = false ) {
 	global $fac4wp_default_options;
+	static $cached_options = null;
+
+	if ( null !== $cached_options && ! $force ) {
+		return $cached_options;
+	}
 
 	$stored_options = (array) get_option( FAC4WP_OPTIONS );
 	if ( ! is_array( $fac4wp_default_options ) ) {
@@ -70,9 +74,13 @@ function fac4wp_reload_options() {
 	];
 	$return_options     = array_merge( $return_options, $fac_fathom_options );
 
-	return apply_filters( 'fac4wp_global_reload_options', $return_options );
+	$cached_options = apply_filters( 'fac4wp_global_reload_options', $return_options );
+
+	return $cached_options;
 }
 
+// Backward compatibility: keep global populated for external code.
+global $fac4wp_options;
 $fac4wp_options = fac4wp_reload_options();
 
 // get Site ID from Fathom Analytics.
@@ -96,8 +104,7 @@ function fac_fathom_analytics_is_active() {
 
 // check API key.
 function fac_api_key() {
-	global $fac4wp_options;
-	$_site_id = $fac4wp_options[ FAC_OPTION_SITE_ID ];
+	$_site_id = FAC_Options::get( FAC_OPTION_SITE_ID );
 	if ( empty( $_site_id ) ) {
 		return '';
 	}
@@ -120,8 +127,7 @@ if ( ! function_exists( 'fac_array_map_recursive' ) ) {
 
 // get Fathom events.
 function fac_get_fathom_events() {
-	global $fac4wp_options;
-	$_site_id = $fac4wp_options[ FAC_OPTION_SITE_ID ];
+	$_site_id = FAC_Options::get( FAC_OPTION_SITE_ID );
 	if ( empty( $_site_id ) ) {
 		return '';
 	}
@@ -133,15 +139,12 @@ function fac_get_fathom_events() {
 
 // get new Fathom event.
 function fac_get_fathom_event( $id ) {
-	global $fac4wp_options;
-	$_site_id = $fac4wp_options[ FAC_OPTION_SITE_ID ];
+	$_site_id = FAC_Options::get( FAC_OPTION_SITE_ID );
 	$return   = [];
 	if ( empty( $_site_id ) ) {
 		return [];
 	}
 	$url    = 'https://api.usefathom.com/v1/sites/' . $_site_id . '/events/' . $id;
-	$method = 'POST';
-	//$body = ['id' => $id];
 	$return = fac_fathom_api( $url );
 
 	return $return;
@@ -149,14 +152,12 @@ function fac_get_fathom_event( $id ) {
 
 // create new Fathom event.
 function fac_create_fathom_event( $name ) {
-	global $fac4wp_options;
-	$_site_id = $fac4wp_options[ FAC_OPTION_SITE_ID ];
+	$_site_id = FAC_Options::get( FAC_OPTION_SITE_ID );
 	$return   = [];
 	if ( empty( $_site_id ) ) {
 		return [];
 	}
-	$url    = 'https://api.usefathom.com/v1/sites/' . $_site_id . '/events';
-	$method = 'POST';
+	$url  = 'https://api.usefathom.com/v1/sites/' . $_site_id . '/events';
 	$body   = [ 'name' => $name ];
 	$return = fac_save_fathom_api( $url, $body );
 
@@ -188,14 +189,12 @@ function fac_add_new_fathom_event( $name ) {
 
 // update Fathom event name.
 function fac_update_fathom_event( $event_id, $name ) {
-	global $fac4wp_options;
-	$_site_id = $fac4wp_options[ FAC_OPTION_SITE_ID ];
+	$_site_id = FAC_Options::get( FAC_OPTION_SITE_ID );
 	$return   = [];
 	if ( empty( $_site_id ) || empty( $event_id ) || empty( $name ) ) {
 		return [];
 	}
-	$url    = 'https://api.usefathom.com/v1/sites/' . $_site_id . '/events/' . $event_id;
-	$method = 'POST';
+	$url  = 'https://api.usefathom.com/v1/sites/' . $_site_id . '/events/' . $event_id;
 	$body   = [ 'name' => $name ];
 	$return = fac_save_fathom_api( $url, $body );
 
@@ -204,10 +203,9 @@ function fac_update_fathom_event( $event_id, $name ) {
 
 // get Fathom API.
 function fac_fathom_api( $url = '' ) {
-	global $fac4wp_options;
 	$return   = [];
-	$_api_key = $fac4wp_options[ FAC4WP_OPTION_API_KEY_CODE ];
-	$_site_id = $fac4wp_options[ FAC_OPTION_SITE_ID ];
+	$_api_key = FAC_Options::get( FAC4WP_OPTION_API_KEY_CODE );
+	$_site_id = FAC_Options::get( FAC_OPTION_SITE_ID );
 	if ( empty( $url ) || empty( $_site_id ) || empty( $_api_key ) ) {
 		return $return;
 	}
@@ -247,10 +245,9 @@ function fac_fathom_api( $url = '' ) {
 
 // get Fathom API.
 function fac_save_fathom_api( $url = '', $body = '' ) {
-	global $fac4wp_options;
 	$return   = [];
-	$_api_key = $fac4wp_options[ FAC4WP_OPTION_API_KEY_CODE ];
-	$_site_id = $fac4wp_options[ FAC_OPTION_SITE_ID ];
+	$_api_key = FAC_Options::get( FAC4WP_OPTION_API_KEY_CODE );
+	$_site_id = FAC_Options::get( FAC_OPTION_SITE_ID );
 	if ( empty( $url ) || empty( $_site_id ) || empty( $_api_key ) ) {
 		return $return;
 	}
@@ -284,7 +281,6 @@ function fac_save_fathom_api( $url = '', $body = '' ) {
 			}
 		}
 		$return['error'] = $error_msg;
-		//echo '<pre>';print_r($result);echo '</pre>';
 	}
 
 	return $return;
@@ -302,11 +298,69 @@ function fac_is_json( $string ) {
  */
 if ( ! function_exists( 'is_fac_fathom_analytic_active' ) ) {
 	function is_fac_fathom_analytic_active() {
-		global $fac4wp_options;
-		if ( $fac4wp_options['fac_fathom_analytics_is_active'] || ! empty( $fac4wp_options[ FAC_OPTION_INSTALLED_TC ] ) ) {
+		if ( FAC_Options::get( 'fac_fathom_analytics_is_active' ) || ! empty( FAC_Options::get( FAC_OPTION_INSTALLED_TC ) ) ) {
 			return TRUE;
 		}
 
 		return FALSE;
 	}
 }
+
+/**
+ * Output a Fathom Analytics conversion event script on the frontend.
+ *
+ * Use this function (or the `fac_track_event` action) from your plugin
+ * to fire a `fathom.trackEvent()` call on any page.
+ *
+ * Must be called during or before `wp_footer` output (e.g., inside a
+ * `wp_footer` action callback).
+ *
+ * Example:
+ *   add_action( 'wp_footer', function() {
+ *       fac_track_conversion( 'Membership Signup', 2999 );
+ *   });
+ *
+ * @since 1.2
+ *
+ * @param string $event_name The event name (matches the event in your Fathom dashboard).
+ * @param int    $value      Optional. Event value in cents (e.g., 1999 = $19.99). Default 0.
+ */
+function fac_track_conversion( $event_name, $value = 0 ) {
+	if ( empty( $event_name ) ) {
+		return;
+	}
+
+	if ( ! function_exists( 'is_fac_fathom_analytic_active' ) || ! is_fac_fathom_analytic_active() ) {
+		return;
+	}
+
+	if ( fac_fathom_is_excluded_from_tracking() ) {
+		return;
+	}
+
+	$js = 'window.addEventListener("load", function() { fathom.trackEvent('
+		. wp_json_encode( $event_name );
+
+	if ( $value > 0 ) {
+		$js .= ', {_value: ' . intval( $value ) . '}';
+	}
+
+	$js .= '); });';
+
+	wp_print_inline_script_tag( $js, [
+		'id'                      => 'fac-custom-' . sanitize_title( $event_name ),
+		'data-cfasync'            => 'false',
+		'data-pagespeed-no-defer' => true,
+	] );
+}
+
+/**
+ * Action hook for third-party plugins to fire a Fathom conversion.
+ *
+ * Usage:
+ *   do_action( 'fac_track_event', 'My Event Name' );
+ *   do_action( 'fac_track_event', 'My Event Name', 1999 );
+ *
+ * @since 1.2
+ */
+add_action( 'fac_track_event', 'fac_track_conversion', 10, 2 );

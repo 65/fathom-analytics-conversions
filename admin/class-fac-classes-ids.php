@@ -91,8 +91,7 @@ class Fathom_Analytics_Conversions_Classes_IDs {
 
 		$optionsName = 'fac4wp-options';
 		$options     = get_option( 'fac4wp-options', [] );
-		//echo '<pre>';print_r( $options );echo '</pre>';
-		$settings = isset( $options['classes_ids'] ) ? $options['classes_ids'] : [];
+		$settings    = isset( $options['classes_ids'] ) ? $options['classes_ids'] : [];
 		$counter  = 0;
 		if ( is_array( $settings ) ) {
 			$counter = count( $settings );
@@ -122,17 +121,17 @@ class Fathom_Analytics_Conversions_Classes_IDs {
 								echo '<tr class="table_row">';
 								echo '<td>';
 								echo '<input type="text"
-                                           name="fac4wp-options[classes_ids][' . $i . '][name]" value="' . $row['name'] . '"
+                                           name="fac4wp-options[classes_ids][' . $i . '][name]" value="' . esc_attr( $row['name'] ) . '"
                                            class="classes_ids_name" ' . $required . '></td>';
 								echo '<td class="classes_ids_class_td">
-                                    <input type="text" name="fac4wp-options[classes_ids][' . $i . '][class]" value="' . $row['class'] . '"
+                                    <input type="text" name="fac4wp-options[classes_ids][' . $i . '][class]" value="' . esc_attr( $row['class'] ) . '"
                                            id="course_' . $i . '"
                                            class="classes_ids_class" ' . $required . '>';
 								echo '</td>';
 								echo '<td>';
 								echo '<input type="number"
                                            name="fac4wp-options[classes_ids][' . $i . '][value]"
-                                           value="' . $row['value'] . '"
+                                           value="' . esc_attr( $row['value'] ) . '"
                                            class="classes_ids_value">
                                 </td>
                                 <td>
@@ -181,11 +180,14 @@ class Fathom_Analytics_Conversions_Classes_IDs {
 
 	// Save.
 	public function fac_settings_field_save_classes_ids() {
-		if ( ! current_user_can( 'manage_options' ) && ( ! wp_doing_ajax() ) ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 
 		if ( isset( $_POST['fac4wp-options'] ) && isset( $_POST['fac4wp-options']['classes_ids'] ) ) {
+
+			// Verify the Settings API nonce to prevent CSRF.
+			check_admin_referer( 'fac4wp-admin-group-options' );
 
 			$submittedData = (array) $_POST['fac4wp-options'];
 			$submittedData = $this->fac4wp_sanitize_options( $submittedData );
@@ -196,7 +198,6 @@ class Fathom_Analytics_Conversions_Classes_IDs {
 	// Sanitize.
 	public function fac4wp_sanitize_options( $options ) {
 		$output = fac4wp_reload_options();
-		//echo '<pre>';print_r( $output );echo '</pre>';
 		foreach ( $output as $option_name => $option_value ) {
 			if ( isset( $options[ $option_name ] ) ) {
 				$new_option_value = $options[ $option_name ];
@@ -267,8 +268,7 @@ class Fathom_Analytics_Conversions_Classes_IDs {
 	 * @since    1.0.9
 	 */
 	public function fac_classes_ids_footer_script() {
-		//global $fac4wp_options;
-		if ( fac_fathom_analytics_is_active() && ! fac_fathom_is_excluded_from_tracking() ) {
+		if ( is_fac_fathom_analytic_active() && ! fac_fathom_is_excluded_from_tracking() ) {
 			// Admin settings.
 			$ad_Options  = get_option( 'fac4wp-options', [] );
 			$classes_ids = isset( $ad_Options['classes_ids'] ) ? $ad_Options['classes_ids'] : [];
@@ -293,37 +293,40 @@ class Fathom_Analytics_Conversions_Classes_IDs {
 				}
 
 				if ( count( $track_event ) > 0 ) {
-					$fac_content = '<script id="fac-classes-ids" data-cfasync="false" data-pagespeed-no-defer type="text/javascript">';
-					$fac_content .= 'window.addEventListener("load", (event) => {' . "\n\t";
+					$js  = 'window.addEventListener("load", (event) => {' . "\n\t";
 					foreach ( $track_event as $k => $event ) {
                         if( empty( $event ) ) {
                             continue;
                         }
 						if ( strpos( $event[0], '#' ) === 0 ) {
-							$id          = substr( $event[0], 1 );
-							$fac_content .= 'const id_' . $k . ' = document.getElementById("' . $id . '");' . "\n\t";
-							$fac_content .= 'if( id_' . $k . ' ) {' . "\n\t\t";
-							$fac_content .= 'id_' . $k . '.addEventListener("click", () => {';
-							$fac_content .= '
-            fathom.trackEvent("' . $event[1] . '", {_value: ' . $event[2] . '});';
-							$fac_content .= '
+							$id  = substr( $event[0], 1 );
+							$js .= 'const id_' . $k . ' = document.getElementById(' . wp_json_encode( $id ) . ');' . "\n\t";
+							$js .= 'if( id_' . $k . ' ) {' . "\n\t\t";
+							$js .= 'id_' . $k . '.addEventListener("click", () => {';
+							$js .= '
+            fathom.trackEvent(' . wp_json_encode( $event[1] ) . ', {_value: ' . intval( $event[2] ) . '});';
+							$js .= '
 	    });' . "\n\t";
-							$fac_content .= '}' . "\n\t";
+							$js .= '}' . "\n\t";
 						} else {
-							$fac_content .= 'document.querySelectorAll("' . $event[0] . '").forEach(item => {';
-							$fac_content .= '
+							$js .= 'document.querySelectorAll(' . wp_json_encode( $event[0] ) . ').forEach(item => {';
+							$js .= '
         item.addEventListener("click", event => {';
-							$fac_content .= '
-            fathom.trackEvent("' . $event[1] . '", {_value: ' . $event[2] . '});';
-							$fac_content .= '
+							$js .= '
+            fathom.trackEvent(' . wp_json_encode( $event[1] ) . ', {_value: ' . intval( $event[2] ) . '});';
+							$js .= '
 	    });';
-							$fac_content .= '
+							$js .= '
 	});' . "\n\t";
 						}
 					}
-					$fac_content .= '});';
-					$fac_content .= '</script><!-- END Fathom Analytics Conversions -->';
-					echo $fac_content;
+					$js .= '});';
+
+					wp_print_inline_script_tag( $js, [
+						'id'                      => 'fac-classes-ids',
+						'data-cfasync'            => 'false',
+						'data-pagespeed-no-defer' => true,
+					] );
 				}
 			}
 		}

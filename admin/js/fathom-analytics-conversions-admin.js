@@ -30,9 +30,13 @@
      */
 
     $(window).on('load', function () {
-        $('#nf-drawer-content').on('DOMSubtreeModified', function () {
-            $("input#fathom_analytics").prop("readonly", true);
-        });
+        var nfDrawer = document.getElementById('nf-drawer-content');
+        if (nfDrawer) {
+            var observer = new MutationObserver(function () {
+                $("input#fathom_analytics").prop("readonly", true);
+            });
+            observer.observe(nfDrawer, { childList: true, subtree: true });
+        }
     });
 
     $(function () {
@@ -62,12 +66,10 @@
         '</td>');
         newRow.appendTo(wrapO);
         $(this).attr('data-counter', Number(counter)+1);
-        //$('#course'+counter).select2();
     });
     $(document).on('click', '.removeRow', function(e) {
         e.preventDefault();
         var wrapCol = $(this).closest('.table_row');
         wrapCol.remove();
     });
-    //$('.domain_course_2').select2();
 })(jQuery);

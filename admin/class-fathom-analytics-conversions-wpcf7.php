@@ -87,21 +87,21 @@ class Fathom_Analytics_Conversions_WPCF7 {
 	 * @since    1.0.0
 	 */
 	public function enqueue_scripts() {
-		global $fac4wp_options, $fac4wp_plugin_url;
-
-		if ( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_WPCF7 ] && is_fac_fathom_analytic_active() ) {
+		if ( FAC_Options::get( FAC4WP_OPTION_INTEGRATE_WPCF7 ) && is_fac_fathom_analytic_active() ) {
 			if ( ! fac_fathom_is_excluded_from_tracking() ) { // Track visits by administrators!
 
-				$fac_content = '<script id="fac-wpcf7" data-cfasync="false" data-pagespeed-no-defer type="text/javascript">';
-				$fac_content .= 'window.addEventListener("load", (event) => {' . "\n\t";
-				$fac_content .= 'document.addEventListener( "wpcf7mailsent", function( e ) {' . "\n\t\t";
-				$fac_content .= 'let form_name = e.target.dataset.name;' . "\n\t\t";
-				$fac_content .= 'fathom.trackEvent(form_name +" ["+e.detail.contactFormId+"]");' . "\n\t";
-				$fac_content .= '}, false );' . "\n\t";
-				$fac_content .= '});';
-				$fac_content .= '</script>';
+				$js  = 'window.addEventListener("load", (event) => {' . "\n\t";
+				$js .= 'document.addEventListener( "wpcf7mailsent", function( e ) {' . "\n\t\t";
+				$js .= 'let form_name = e.target.dataset.name;' . "\n\t\t";
+				$js .= 'fathom.trackEvent(form_name +" ["+e.detail.contactFormId+"]");' . "\n\t";
+				$js .= '}, false );' . "\n\t";
+				$js .= '});';
 
-				echo $fac_content;
+				wp_print_inline_script_tag( $js, [
+					'id'                      => 'fac-wpcf7',
+					'data-cfasync'            => 'false',
+					'data-pagespeed-no-defer' => true,
+				] );
 			}
 		}
 	}

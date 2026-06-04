@@ -86,27 +86,27 @@ class Fathom_Analytics_Conversions_WPForms {
 	 * @since    1.0.0
 	 */
 	public function enqueue_scripts() {
-		global $fac4wp_options;
-
-		if ( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_WPFORMS ] && is_fac_fathom_analytic_active() ) {
+		if ( FAC_Options::get( FAC4WP_OPTION_INTEGRATE_WPFORMS ) && is_fac_fathom_analytic_active() ) {
 			if ( ! fac_fathom_is_excluded_from_tracking() ) { // Track visits by administrators!
-				$fac_content = '<script id="fac-wpforms" data-cfasync="false" data-pagespeed-no-defer type="text/javascript">';
-				$fac_content .= 'window.addEventListener("load", (event) => {' . "\n\t";
-				$fac_content .= 'var elementsArray = document.querySelectorAll(\'[id^="wpforms-form-"]\');
+				$js  = 'window.addEventListener("load", (event) => {' . "\n\t";
+				$js .= 'var elementsArray = document.querySelectorAll(\'[id^="wpforms-form-"]\');
     elementsArray.forEach(function(elem) {
         if( elem.tagName === "FORM") {
             elem.addEventListener("submit", function (e) {
                 var wpFormsId = e.target.dataset.formid,
                     wpFormsTitle = e.target.dataset.formName,
 	                event_name = wpFormsTitle + " [" + wpFormsId + "]";
-	                //console.log(event_name);
                 fathom.trackEvent(event_name);
             });
         }
     });';
-				$fac_content .= '});';
-				$fac_content .= '</script>';
-				echo $fac_content;
+				$js .= '});';
+
+				wp_print_inline_script_tag( $js, [
+					'id'                      => 'fac-wpforms',
+					'data-cfasync'            => 'false',
+					'data-pagespeed-no-defer' => true,
+				] );
 			}
 		}
 	}
