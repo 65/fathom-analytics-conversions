@@ -65,13 +65,11 @@ class Fathom_Analytics_Conversions_Ninja_Forms {
 	 * @since    1.0.0
 	 */
 	public function enqueue_scripts() {
-		global $fac4wp_options, $fac4wp_plugin_url;
-		if ( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_NINJAFORMS ] && is_fac_fathom_analytic_active() ) {
+		if ( FAC_Options::get( FAC4WP_OPTION_INTEGRATE_NINJAFORMS ) && is_fac_fathom_analytic_active() ) {
 
 			if ( ! fac_fathom_is_excluded_from_tracking() ) { // track visits by administrators!
 
-				$fac_content = '<script id="fac-ninja-forms" data-cfasync="false" data-pagespeed-no-defer type="text/javascript">';
-				$fac_content .= 'jQuery(document).ready(function () {
+				$js = 'jQuery(document).ready(function () {
     jQuery(document).on("nfFormSubmitResponse", function (e, response, id) {
         if (response.response && response.response.data && response.response.data.settings && response.response.data.settings.title) {
 	        let form_id = response.id,
@@ -80,9 +78,12 @@ class Fathom_Analytics_Conversions_Ninja_Forms {
         }
     });
 });';
-				$fac_content .= '</script>';
 
-				echo $fac_content;
+				wp_print_inline_script_tag( $js, [
+					'id'                      => 'fac-ninja-forms',
+					'data-cfasync'            => 'false',
+					'data-pagespeed-no-defer' => true,
+				] );
 			}
 		}
 	}

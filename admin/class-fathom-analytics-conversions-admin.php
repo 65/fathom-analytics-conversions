@@ -96,7 +96,7 @@ class Fathom_Analytics_Conversions_Admin {
 		 * class.
 		 */
 
-		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/fathom-analytics-conversions-admin.js', [ 'jquery' ], '1.0.7', FALSE );
+		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/fathom-analytics-conversions-admin.js', [ 'jquery' ], $this->version, TRUE );
 
 	}
 
@@ -119,22 +119,19 @@ class Fathom_Analytics_Conversions_Admin {
 
 	// admin output field
 	public function fac4wp_admin_output_field( $args ) {
-		global $fac4wp_options;
-		$_site_id     = $fac4wp_options[ FAC_OPTION_SITE_ID ];
-		$installed_tc = $fac4wp_options[ FAC_OPTION_INSTALLED_TC ];
+		$_site_id     = FAC_Options::get( FAC_OPTION_SITE_ID );
+		$installed_tc = FAC_Options::get( FAC_OPTION_INSTALLED_TC );
 
 		switch ( $args['label_for'] ) {
 			case FAC4WP_ADMIN_GROUP_API_KEY:
 			{
-				$_api_key        = $fac4wp_options[ FAC4WP_OPTION_API_KEY_CODE ];
+				$_api_key        = FAC_Options::get( FAC4WP_OPTION_API_KEY_CODE );
 				$_input_readonly = '';
 
 				echo '<input type="text" id="' . esc_attr( FAC4WP_OPTIONS . '[' . FAC4WP_OPTION_API_KEY_CODE . ']' ) . '" name="' . esc_attr( FAC4WP_OPTIONS . '[' . FAC4WP_OPTION_API_KEY_CODE . ']' ) . '" value="' . esc_attr( $_api_key ) . '" ' . esc_html( $_input_readonly ) . ' class="regular-text" />';
 				$result = fac_api_key();
-				//echo '<pre>';print_r( $fac4wp_options );echo '</pre>';
 				if ( isset( $result['code'] ) && $result['code'] === 200 ) {
 					$body = isset( $result['body'] ) ? json_decode( $result['body'], TRUE ) : [];
-					//echo '<pre>';print_r($body);echo '</pre>';
 					$r_site_id = isset( $body['id'] ) ? $body['id'] : '';
 					/*$r_site_name = isset( $body['name'] ) ? $body['name'] : '';
 					$site_name   = get_site_url();
@@ -159,11 +156,9 @@ class Fathom_Analytics_Conversions_Admin {
 						],
 					] );
 
-				//if(get_current_user_id() === 2) {
 				if ( isset( $result['error'] ) && ! empty( $result['error'] ) ) {
 					echo '<p class="fac_error">' . esc_html( $result['error'] ) . '</p>';
 				}
-				//}
 
 				break;
 			}
@@ -208,7 +203,7 @@ class Fathom_Analytics_Conversions_Admin {
 
 			default:
 			{
-				$opt_val = $fac4wp_options[ $args['option_field_id'] ];
+				$opt_val = FAC_Options::get( $args['option_field_id'] );
 
 				switch ( gettype( $opt_val ) ) {
 					case 'boolean':
@@ -249,7 +244,7 @@ class Fathom_Analytics_Conversions_Admin {
 											],
 										]
 									),
-									is_array( $args['plugin_to_check'] ) ? implode( ' or ', $args['plugin_to_check'] ) : $args['plugin_to_check']
+									esc_html( is_array( $args['plugin_to_check'] ) ? implode( ' or ', $args['plugin_to_check'] ) : $args['plugin_to_check'] )
 								);
 							}
 						}
@@ -472,6 +467,27 @@ class Fathom_Analytics_Conversions_Admin {
 		}
 
 		do_action( 'fac4wp_settings_field_after_integration_section' );
+
+		// Advanced section.
+		add_settings_section(
+			'fac4wp-admin-group-advanced',
+			__( 'Advanced', 'fathom-analytics-conversions' ),
+			[ $this, 'fac4wp_admin_output_section' ],
+			FAC4WP_ADMINSLUG
+		);
+
+		add_settings_field(
+			'fac4wp-admin-delete-data-id',
+			__( 'Delete data on uninstall', 'fathom-analytics-conversions' ),
+			[ $this, 'fac4wp_admin_output_field' ],
+			FAC4WP_ADMINSLUG,
+			'fac4wp-admin-group-advanced',
+			[
+				'label_for'       => 'fac4wp-options[fac_delete_data_on_uninstall]',
+				'description'     => __( 'Check this to remove all plugin settings and data when the plugin is deleted. If unchecked, your settings will be preserved for future re-installation.', 'fathom-analytics-conversions' ),
+				'option_field_id' => 'fac_delete_data_on_uninstall',
+			]
+		);
 	}
 
 	/**
@@ -499,7 +515,7 @@ class Fathom_Analytics_Conversions_Admin {
             <div id="fac4wp-icon" class="icon32"
                  style="background-image: url(<?php //echo $gtp4wp_plugin_url; ?>admin/images/tag_manager-32.png);">
                 <br/></div>
-            <h2><?php _e( 'Fathom Analytics Conversions options', 'fathom-analytics-conversions' ); ?></h2>
+            <h2><?php esc_html_e( 'Fathom Analytics Conversions options', 'fathom-analytics-conversions' ); ?></h2>
             <form action="options.php" method="post">
 
 				<?php settings_fields( FAC4WP_ADMIN_GROUP ); ?>
@@ -516,7 +532,7 @@ class Fathom_Analytics_Conversions_Admin {
 	}
 
 	public function fac_admin_notices() {
-		$fac4wp_options = fac4wp_reload_options();
+		$fac4wp_options = FAC_Options::reload();
 
 		if ( ! file_exists( WP_PLUGIN_DIR . '/fathom-analytics/fathom-analytics.php' ) ) {
 
@@ -552,7 +568,7 @@ class Fathom_Analytics_Conversions_Admin {
 				]
 			);
 
-		} elseif ( ! is_plugin_active( 'fathom-analytics/fathom-analytics.php' ) && empty( $fac4wp_options[ FAC_OPTION_INSTALLED_TC ] ) ) {
+		} elseif ( ! is_plugin_active( 'fathom-analytics/fathom-analytics.php' ) && empty( FAC_Options::get( FAC_OPTION_INSTALLED_TC ) ) ) {
 			$notice = '<div class="error" id="messages"><p>';
 			$notice .= wp_kses( __( '<b>Please activate Fathom Analytics</b> below for the <b>Fathom Analytics Conversions</b> to work.', 'fathom-analytics-conversions' ),
 				[

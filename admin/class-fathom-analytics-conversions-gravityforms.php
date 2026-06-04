@@ -84,13 +84,12 @@ class Fathom_Analytics_Conversions_GravityForms {
 	 *
 	 */
 	public function fac_gform_ajax_only( $form_args ) {
-		global $fac4wp_options;
 
 		if ( class_exists( 'GFCommon' ) && GFCommon::is_preview() ) {
 			return $form_args;
 		}
 
-		if ( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_GRAVIRYFORMS ] && is_fac_fathom_analytic_active() ) {
+		if ( FAC_Options::get( FAC4WP_OPTION_INTEGRATE_GRAVIRYFORMS ) && is_fac_fathom_analytic_active() ) {
 			$form_args['ajax'] = TRUE;
 		}
 
@@ -99,12 +98,10 @@ class Fathom_Analytics_Conversions_GravityForms {
 
 	// Add custom form element - form title.
 	public function fac_gform_confirmation( $confirmation, $form ) {
-		//echo '<pre>';print_r($confirmation);echo '</pre>';
-		//echo '<div id="gform_name_' . $form['id'] . '" data-form-name="' . esc_html( $form['title'] ) . '"></div>';
 		if ( is_array( $confirmation ) && ! empty( $confirmation['redirect'] ) ) {
-			$confirmation['redirect'] = add_query_arg( [ 'fac_gf' => $form['title'] . ' [' . $form['id'] . ']' ], $confirmation['redirect'] );
+			$confirmation['redirect'] = add_query_arg( [ 'fac_gf' => sanitize_text_field( $form['title'] ) . ' [' . intval( $form['id'] ) . ']' ], $confirmation['redirect'] );
 		} elseif ( is_string( $confirmation ) ) {
-			$confirmation .= '<div id="gform_name_' . $form['id'] . '" data-form-name="' . esc_html( $form['title'] ) . '"></div>';
+			$confirmation .= '<div id="gform_name_' . intval( $form['id'] ) . '" data-form-name="' . esc_html( $form['title'] ) . '"></div>';
 		}
 
 		return $confirmation;
@@ -112,7 +109,7 @@ class Fathom_Analytics_Conversions_GravityForms {
 
 	// Add custom form element - form title.
 	public function fac_gform_form_after_open( $html, $form ) {
-		$html .= '<div id="gform_name_' . $form['id'] . '" data-form-name="' . esc_html( $form['title'] ) . '"></div>';
+		$html .= '<div id="gform_name_' . intval( $form['id'] ) . '" data-form-name="' . esc_html( $form['title'] ) . '"></div>';
 
 		return $html;
 	}
@@ -121,7 +118,7 @@ class Fathom_Analytics_Conversions_GravityForms {
 	 * Add custom form attribute - form title.
 	 */
 	public function fac_gform_form_tag( $form_tag, $form ) {
-		$form_tag = str_replace( '>', ' data-form-name="' . $form['title'] . '">', $form_tag );
+		$form_tag = str_replace( '>', ' data-form-name="' . esc_attr( $form['title'] ) . '">', $form_tag );
 
 		return $form_tag;
 	}
@@ -132,20 +129,18 @@ class Fathom_Analytics_Conversions_GravityForms {
 	 * @since    1.0.0
 	 */
 	public function enqueue_scripts() {
-		global $fac4wp_options, $fac4wp_plugin_url;
 
-		if ( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_GRAVIRYFORMS ] && is_fac_fathom_analytic_active() ) {
+		if ( FAC_Options::get( FAC4WP_OPTION_INTEGRATE_GRAVIRYFORMS ) && is_fac_fathom_analytic_active() ) {
 			if ( ! fac_fathom_is_excluded_from_tracking() ) { // Track visits by administrators!
 
-				$fac_content = '<script id="fac-gravity-forms" data-cfasync="false" data-pagespeed-no-defer type="text/javascript">';
-				$fac_content .= 'jQuery(document).on("gform_confirmation_loaded", function(e, formId, confirmationMessage) {
+				$js  = 'jQuery(document).on("gform_confirmation_loaded", function(e, formId, confirmationMessage) {
     var f = document.getElementById("gform_name_"+formId);
     if( f ) {
         var form_name = f.dataset.formName;
         fathom.trackEvent(form_name + " ["+formId+"]");
     }
 });';
-				$fac_content .= "\nfunction facGfGetUrlParameter(name) {
+				$js .= "\nfunction facGfGetUrlParameter(name) {
 	name = name.replace(/[\[\]]/g, '\\$&');
 	const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
 	const results = regex.exec(window.location.href);
@@ -159,9 +154,12 @@ window.addEventListener('load', (event) => {
 		fathom.trackEvent(facGfValue);
 	}
 });";
-				$fac_content .= '</script>';
 
-				echo $fac_content;
+				wp_print_inline_script_tag( $js, [
+					'id'                      => 'fac-gravity-forms',
+					'data-cfasync'            => 'false',
+					'data-pagespeed-no-defer' => true,
+				] );
 			}
 		}
 

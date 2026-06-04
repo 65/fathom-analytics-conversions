@@ -103,21 +103,21 @@ class Fathom_Analytics_Conversions_URL {
 		?>
         <label class="link_to_fathom_event_title"
                style="margin-bottom: 8px;display: block;font-weight: 500;">
-			<?php _e( 'Link to Fathom Event', 'fathom-analytics-conversions' ); ?>
+			<?php esc_html_e( 'Link to Fathom Event', 'fathom-analytics-conversions' ); ?>
         </label>
         <div class="link_to_fathom_event" style="margin-bottom: 16px;">
             <label for="link_to_fathom_event">
                 <input type="checkbox" id="link_to_fathom_event" class=""
                        name="link_to_fathom_event"
                        value="1" <?php checked( $value ); ?> />
-				<?php _e( 'Add Fathom Event conversations every time this page is visited.', 'fathom-analytics-conversions' ); ?>
+				<?php esc_html_e( 'Add Fathom Event conversations every time this page is visited.', 'fathom-analytics-conversions' ); ?>
             </label>
         </div>
         <div class="link_to_fathom_event_name_field"
-             style="<?php echo $event_name_css; ?>">
+             style="<?php echo esc_attr( $event_name_css ); ?>">
             <label for="link_to_fathom_event_name"
                    style="margin-bottom: 8px;display: block;font-weight: 500;">
-				<?php _e( 'Event Name', 'fathom-analytics-conversions' ); ?>
+				<?php esc_html_e( 'Event Name', 'fathom-analytics-conversions' ); ?>
             </label>
             <div class="link_to_fathom_event_name components-form-token-field__input-container">
                 <input type="text" id="link_to_fathom_event_name"
@@ -126,14 +126,14 @@ class Fathom_Analytics_Conversions_URL {
                        value="<?php echo esc_attr( $event_name ); ?>"/>
             </div>
         </div>
-        <script>
-            jQuery(document).ready(function ($) {
-                $('#link_to_fathom_event').on('change', function () {
-                    if (this.checked) $('.link_to_fathom_event_name_field').show(100);
-                    else $('.link_to_fathom_event_name_field').hide(100);
-                });
-            });
-        </script>
+		<?php
+		wp_print_inline_script_tag( 'jQuery(document).ready(function ($) {
+			$("#link_to_fathom_event").on("change", function () {
+				if (this.checked) $(".link_to_fathom_event_name_field").show(100);
+				else $(".link_to_fathom_event_name_field").hide(100);
+			});
+		});', [ 'id' => 'fac-url-meta-toggle' ] );
+		?>
 		<?php
 	}
 
@@ -159,8 +159,8 @@ class Fathom_Analytics_Conversions_URL {
 			return;
 		}
 
-		$link_to_fathom_event_value = filter_input( INPUT_POST, 'link_to_fathom_event', FILTER_SANITIZE_SPECIAL_CHARS );
-		$link_to_fathom_event_name  = filter_input( INPUT_POST, 'link_to_fathom_event_name', FILTER_SANITIZE_SPECIAL_CHARS );
+		$link_to_fathom_event_value = isset( $_POST['link_to_fathom_event'] ) ? sanitize_text_field( wp_unslash( $_POST['link_to_fathom_event'] ) ) : '';
+		$link_to_fathom_event_name  = isset( $_POST['link_to_fathom_event_name'] ) ? sanitize_text_field( wp_unslash( $_POST['link_to_fathom_event_name'] ) ) : '';
 
 		if ( $link_to_fathom_event_value ) {
 			update_post_meta( $post_id, '_fac_url_page', $link_to_fathom_event_value );
@@ -190,14 +190,15 @@ class Fathom_Analytics_Conversions_URL {
 			$event_name = get_post_meta( $post_id, '_fac_url_event_name', TRUE );
 			$event_name = ! empty( $event_name ) ? $event_name : get_the_title( $post ) . ' - ' . $post_id;
 			if ( $track_page && $event_name ) {
-				?>
-                <script id="fac-page-url" data-cfasync="false"
-                        data-pagespeed-no-defer type="text/javascript">
-                    window.addEventListener('load', (event) => {
-                        fathom.trackEvent('<?php echo $event_name;?>');
-                    });
-                </script>
-				<?php
+				$js = 'window.addEventListener(\'load\', (event) => {
+                        fathom.trackEvent(' . wp_json_encode( $event_name ) . ');
+                    });';
+
+				wp_print_inline_script_tag( $js, [
+					'id'                      => 'fac-page-url',
+					'data-cfasync'            => 'false',
+					'data-pagespeed-no-defer' => true,
+				] );
 			}
 		}
 	}

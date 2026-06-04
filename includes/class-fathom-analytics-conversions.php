@@ -71,7 +71,7 @@ class Fathom_Analytics_Conversions {
 			$this->version = FATHOM_ANALYTICS_CONVERSIONS_VERSION;
 		}
 		else {
-			$this->version = '1.0.7';
+			$this->version = '1.2';
 		}
 		$this->plugin_name = 'fathom-analytics-conversions';
 
@@ -187,6 +187,7 @@ class Fathom_Analytics_Conversions {
 		/**
 		 * The core functions available on both the front-end and admin
 		 */
+		require_once FAC4WP_PATH . '/includes/class-fac-options.php';
 		require_once FAC4WP_PATH . '/includes/fac-core-functions.php';
 
 		$this->loader = new Fathom_Analytics_Conversions_Loader();
@@ -221,16 +222,33 @@ class Fathom_Analytics_Conversions {
 	 */
 	private function define_admin_hooks() {
 
-		$plugin_admin   = new Fathom_Analytics_Conversions_Admin( $this->get_plugin_name(), $this->get_version() );
-		$plugin_wpcf7   = new Fathom_Analytics_Conversions_WPCF7( $this->get_plugin_name(), $this->get_version() );
-		$plugin_wpforms = new Fathom_Analytics_Conversions_WPForms( $this->get_plugin_name(), $this->get_version() );
-		$plugin_gf      = new Fathom_Analytics_Conversions_GravityForms( $this->get_plugin_name(), $this->get_version() );
+		$plugin_admin = new Fathom_Analytics_Conversions_Admin( $this->get_plugin_name(), $this->get_version() );
 		new Fathom_Analytics_Conversions_URL( $this->get_plugin_name(), $this->get_version() );
-		new Fathom_Analytics_Conversions_Fluent_Form( $this->get_plugin_name(), $this->get_version() );
-		new Fathom_Analytics_Conversions_Ninja_Forms( $this->get_plugin_name(), $this->get_version() );
-		new Fathom_Analytics_Conversions_Woocommerce( $this->get_plugin_name(), $this->get_version() );
-		new Fathom_Analytics_Conversions_WP( $this->get_plugin_name(), $this->get_version() );
 		new Fathom_Analytics_Conversions_Classes_IDs( $this->get_plugin_name(), $this->get_version() );
+
+		// Conditionally instantiate integrations only when enabled.
+		$fac4wp_options = FAC_Options::get_all();
+		if ( ! empty( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_WPCF7 ] ) ) {
+			new Fathom_Analytics_Conversions_WPCF7( $this->get_plugin_name(), $this->get_version() );
+		}
+		if ( ! empty( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_WPFORMS ] ) ) {
+			new Fathom_Analytics_Conversions_WPForms( $this->get_plugin_name(), $this->get_version() );
+		}
+		if ( ! empty( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_GRAVIRYFORMS ] ) ) {
+			new Fathom_Analytics_Conversions_GravityForms( $this->get_plugin_name(), $this->get_version() );
+		}
+		if ( ! empty( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_FLUENTFORMS ] ) ) {
+			new Fathom_Analytics_Conversions_Fluent_Form( $this->get_plugin_name(), $this->get_version() );
+		}
+		if ( ! empty( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_NINJAFORMS ] ) ) {
+			new Fathom_Analytics_Conversions_Ninja_Forms( $this->get_plugin_name(), $this->get_version() );
+		}
+		if ( ! empty( $fac4wp_options[ FAC4WP_OPTION_INTEGRATE_WOOCOMMERCE ] ) ) {
+			new Fathom_Analytics_Conversions_Woocommerce( $this->get_plugin_name(), $this->get_version() );
+		}
+		if ( ! empty( $fac4wp_options['integrate-wp-login'] ) || ! empty( $fac4wp_options['integrate-wp-registration'] ) || ! empty( $fac4wp_options['integrate-wp-lost-password'] ) ) {
+			new Fathom_Analytics_Conversions_WP( $this->get_plugin_name(), $this->get_version() );
+		}
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
